@@ -1,63 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React Without Node.js</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-    <!-- Load React and ReactDOM via CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    <style>
-        body, h1, p, input {
-            font-family: Monsterrat, sans-serif !important;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        input {
-            width: 80%;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 16px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React Without Node.js</title>
+  <!-- Load React and ReactDOM via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <style>
+    body {
+      font-family: Proxima Nova, sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+    input {
+      width: 80%;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    .movie {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+    }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
+  <div id="root"></div>
 
-    <script type="text/babel">
-        function App() {
-            const [searchQuery, setSearchQuery] = React.useState("");
+  <script type="text/babel">
+    function App() {
+      const [searchQuery, setSearchQuery] = React.useState("");
+      const [movies, setMovies] = React.useState([]);
 
-            return (
-                <div className="container">
-                    <h1>Welcome to PopcornPicks</h1>
-                    <p>Start choosing your favorite movies below!</p>
-                    
-                    {/* Search Bar */}
-                    <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    
-                    <p>Searching for: {searchQuery}</p>
-                </div>
-            );
-        }
+      // Fetch trending movies when the component mounts
+      React.useEffect(() => {
+        fetch("http://127.0.0.1:5000/api/movies")
+          .then(response => response.json())
+          .then(data => setMovies(data))
+          .catch(err => console.error("Error fetching movies:", err));
+      }, []);
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+      // Example function to search movies (could be tied to an API endpoint)
+      const handleSearch = () => {
+        fetch(`http://127.0.0.1:5000/api/search?q=${encodeURIComponent(searchQuery)}`)
+          .then(response => response.json())
+          .then(data => setMovies(data))
+          .catch(err => console.error("Error searching movies:", err));
+      };
+
+      return (
+        <div className="container">
+          <h1>Welcome to PopcornPicks</h1>
+          <p>Start choosing your favorite movies below!</p>
+          
+          {/* Search Bar */}
+          <input 
+            type="text" 
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <button onClick={handleSearch}>Search</button>
+          
+          <h2>Movies</h2>
+          {movies.length > 0 ? (
+            movies.map(movie => (
+              <div className="movie" key={movie.id}>
+                <h3>{movie.title}</h3>
+                <p>{movie.description}</p>
+                <p>Rating: {movie.rating}</p>
+              </div>
+            ))
+          ) : (
+            <p>No movies found.</p>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
 </body>
 </html>
