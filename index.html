@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>React Without Node.js</title>
-  <!-- Load React and ReactDOM via CDN -->
+  <title>PopcornPicks (Dummy Data)</title>
+  <!-- React, ReactDOM, Babel (CDN) -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -26,6 +25,11 @@
       margin-top: 10px;
       font-size: 16px;
     }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      margin-left: 5px;
+    }
     .movie {
       border: 1px solid #ccc;
       padding: 10px;
@@ -37,40 +41,66 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    // 1. Define your dummy data here in the frontend
+    const dummyMovies = [
+      {
+        id: 1,
+        title: "John Wick",
+        rating: 7.4,
+        description: "An ex-hitman comes out of retirement to track down the gangsters who killed his dog."
+      },
+      {
+        id: 2,
+        title: "Inception",
+        rating: 8.8,
+        description: "A thief who steals corporate secrets through dream-sharing technology."
+      },
+      {
+        id: 3,
+        title: "The Matrix",
+        rating: 8.7,
+        description: "A computer hacker learns about the true nature of his reality."
+      }
+    ];
+
     function App() {
+      // State for the search input
       const [searchQuery, setSearchQuery] = React.useState("");
-      const [movies, setMovies] = React.useState([]);
+      // State for the movie data
+      const [movies, setMovies] = React.useState(dummyMovies);
 
-      // Fetch trending movies when the component mounts
-      React.useEffect(() => {
-        fetch("http://127.0.0.1:5000/api/movies")
-          .then(response => response.json())
-          .then(data => setMovies(data))
-          .catch(err => console.error("Error fetching movies:", err));
-      }, []);
+      // 2. If you want to mimic "trending/popular" on initial load,
+      //    you can keep them in state as-is. There's no fetch call here.
 
-      // Example function to search movies (could be tied to an API endpoint)
+      // 3. Handle search locally (filter dummy data by title)
       const handleSearch = () => {
-        fetch(`http://127.0.0.1:5000/api/search?q=${encodeURIComponent(searchQuery)}`)
-          .then(response => response.json())
-          .then(data => setMovies(data))
-          .catch(err => console.error("Error searching movies:", err));
+        const query = searchQuery.trim().toLowerCase();
+        if (query === "") {
+          // If empty, reset to all dummy movies
+          setMovies(dummyMovies);
+        } else {
+          // Filter movies by title
+          const filtered = dummyMovies.filter(movie =>
+            movie.title.toLowerCase().includes(query)
+          );
+          setMovies(filtered);
+        }
       };
 
       return (
         <div className="container">
           <h1>Welcome to PopcornPicks</h1>
           <p>Start choosing your favorite movies below!</p>
-          
+
           {/* Search Bar */}
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <button onClick={handleSearch}>Search</button>
-          
+
           <h2>Movies</h2>
           {movies.length > 0 ? (
             movies.map(movie => (
