@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>PopcornPicks (Dummy Data)</title>
+  <title>PopcornPicks</title>
   <!-- React, ReactDOM, Babel (CDN) -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -41,7 +41,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    // 1. Define your dummy data here in the frontend
+    // MOVIES GO HERE. MUST BE REPLACED BY API.
     const dummyMovies = [
       {
         id: 1,
@@ -64,15 +64,9 @@
     ];
 
     function App() {
-      // State for the search input
       const [searchQuery, setSearchQuery] = React.useState("");
-      // State for the movie data
       const [movies, setMovies] = React.useState(dummyMovies);
 
-      // 2. If you want to mimic "trending/popular" on initial load,
-      //    you can keep them in state as-is. There's no fetch call here.
-
-      // 3. Handle search locally (filter dummy data by title)
       const handleSearch = () => {
         const query = searchQuery.trim().toLowerCase();
         if (query === "") {
