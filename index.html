@@ -41,51 +41,56 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    // MOVIES GO HERE. MUST BE REPLACED BY API.
-    const dummyMovies = [
-      {
-        id: 1,
-        title: "John Wick",
-        rating: 7.4,
-        description: "An ex-hitman comes out of retirement to track down the gangsters who killed his dog."
-      },
-      {
-        id: 2,
-        title: "Inception",
-        rating: 8.8,
-        description: "A thief who steals corporate secrets through dream-sharing technology."
-      },
-      {
-        id: 3,
-        title: "The Matrix",
-        rating: 8.7,
-        description: "A computer hacker learns about the true nature of his reality."
-      }
-    ];
-
     function App() {
       const [searchQuery, setSearchQuery] = React.useState("");
-      const [movies, setMovies] = React.useState(dummyMovies);
+      const [movies, setMovies] = React.useState([]);
 
+      // API INTEGRATION GOES BELOW.
+      
+      // TODO: Replace the URL below with the actual API endpoint.
+      React.useEffect(() => {
+        fetch("http://127.0.0.1:5000/api/movies")
+          .then(res => res.json())
+          .then(data => {
+            // Expected: data is an array of movie objects.
+            setMovies(data);
+          })
+          .catch(err => console.error("Error fetching movies:", err));
+      }, []);
+
+  
+  
+      // TODO: Replace the search API URL.
       const handleSearch = () => {
-        const query = searchQuery.trim().toLowerCase();
+        const query = searchQuery.trim();
         if (query === "") {
-          // If empty, reset to all dummy movies
-          setMovies(dummyMovies);
-        } else {
-          // Filter movies by title
-          const filtered = dummyMovies.filter(movie =>
-            movie.title.toLowerCase().includes(query)
-          );
-          setMovies(filtered);
+          return;
         }
+        fetch(`http://127.0.0.1:5000/api/search?q=${encodeURIComponent(query)}`)
+          .then(res => {
+            if (!res.ok) {
+              return res.json().then(errData => {
+                throw new Error(errData.message || "Search error");
+              });
+            }
+            return res.json();
+          })
+          .then(data => {
+            // Expected: data is an array of movie objects matching the search query.
+            setMovies(data);
+          })
+          .catch(err => {
+            console.error("Error searching movies:", err);
+            // Optionally, clear movies on error.
+            setMovies([]);
+          });
       };
 
       return (
         <div className="container">
           <h1>Welcome to PopcornPicks</h1>
           <p>Start choosing your favorite movies below!</p>
-
+          
           {/* Search Bar */}
           <input
             type="text"
@@ -94,7 +99,7 @@
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <button onClick={handleSearch}>Search</button>
-
+          
           <h2>Movies</h2>
           {movies.length > 0 ? (
             movies.map(movie => (
