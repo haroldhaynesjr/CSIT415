@@ -3,58 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React Without Node.js</title>
-    <!-- Load React and ReactDOM via CDN -->
+    <title>PopcornPicks</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        input {
-            width: 80%;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 16px;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; padding: 20px; }
+        input, button { margin-top: 10px; padding: 10px; font-size: 16px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
         function App() {
             const [searchQuery, setSearchQuery] = React.useState("");
-
+            const [movies, setMovies] = React.useState([]);
+            const [token, setToken] = React.useState(localStorage.getItem("token") || "");
+            
+            React.useEffect(() => {
+                fetch("http://127.0.0.1:5000/api/movies")
+                    .then(res => res.json())
+                    .then(data => setMovies(data));
+            }, []);
+            
+            const handleSearch = () => {
+                fetch(`http://127.0.0.1:5000/api/search?q=${searchQuery}`)
+                    .then(res => res.json())
+                    .then(data => setMovies(data.message ? [] : data));
+            };
+            
+            const handleRegister = () => {
+                const email = prompt("Enter email:");
+                const password = prompt("Enter password:");
+                fetch("http://127.0.0.1:5000/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                }).then(res => res.json()).then(data => alert(data.message));
+            };
+            
+            const handleLogin = () => {
+                const email = prompt("Enter email:");
+                const password = prompt("Enter password:");
+                fetch("http://127.0.0.1:5000/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                }).then(res => res.json()).then(data => {
+                    if (data.token) {
+                        localStorage.setItem("token", data.token);
+                        setToken(data.token);
+                    } else {
+                        alert("Login failed");
+                    }
+                });
+            };
+            
+            const addFavorite = (movie) => {
+                if (!token) return alert("Please log in first");
+                fetch("http://127.0.0.1:5000/api/favorites", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ movie_id: movie.id, movie_title: movie.title })
+                }).then(res => res.json()).then(data => alert(data.message));
+            };
+            
             return (
                 <div className="container">
-                    <h1>Welcome to My Home Page</h1>
-                    <p>Explore content and use the search bar below!</p>
-                    
-                    {/* Search Bar */}
-                    <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    
-                    <p>Searching for: {searchQuery}</p>
+                    <h1>PopcornPicks</h1>
+                    <p>Discover movies and TV shows</p>
+                    <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <button onClick={handleSearch}>Search</button>
+                    <button onClick={handleRegister}>Register</button>
+                    <button onClick={handleLogin}>{token ? "Logged In" : "Log In"}</button>
+                    <ul>
+                        {movies.length > 0 ? movies.map(m => (
+                            <li key={m.id}>
+                                <b>{m.title}</b> - Rating: {m.rating}
+                                <button onClick={() => addFavorite(m)}>Add to Favorites</button>
+                            </li>
+                        )) : <p>No results found.</p>}
+                    </ul>
                 </div>
             );
         }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
