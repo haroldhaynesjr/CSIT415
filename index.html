@@ -1,123 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>PopcornPicks</title>
-  <!-- React, ReactDOM, Babel (CDN) -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-  <style>
-    body {
-      font-family: Proxima Nova, sans-serif;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-    .container {
-      max-width: 600px;
-      margin: 20px auto;
-      padding: 20px;
-    }
-    input {
-      width: 80%;
-      padding: 10px;
-      margin-top: 10px;
-      font-size: 16px;
-    }
-    button {
-      padding: 10px;
-      font-size: 16px;
-      margin-left: 5px;
-    }
-    .movie {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin: 10px 0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Without Node.js</title>
+    <!-- Load React and ReactDOM via CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        input {
+            width: 80%;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
-  <div id="root"></div>
+    <div id="root"></div>
 
-  <script type="text/babel">
-    function App() {
-      const [searchQuery, setSearchQuery] = React.useState("");
-      const [movies, setMovies] = React.useState([]);
+    <script type="text/babel">
+        function App() {
+            const [searchQuery, setSearchQuery] = React.useState("");
 
-      // API INTEGRATION GOES BELOW.
-      
-      // TODO: Replace the URL below with the actual API endpoint.
-      React.useEffect(() => {
-        fetch("http://127.0.0.1:5000/api/movies")
-          .then(res => res.json())
-          .then(data => {
-            // Expected: data is an array of movie objects.
-            setMovies(data);
-          })
-          .catch(err => console.error("Error fetching movies:", err));
-      }, []);
-
-  
-  
-      // TODO: Replace the search API URL.
-      const handleSearch = () => {
-        const query = searchQuery.trim();
-        if (query === "") {
-          return;
+            return (
+                <div className="container">
+                    <h1>Welcome to My Home Page</h1>
+                    <p>Explore content and use the search bar below!</p>
+                    
+                    {/* Search Bar */}
+                    <input 
+                        type="text" 
+                        placeholder="Search..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    
+                    <p>Searching for: {searchQuery}</p>
+                </div>
+            );
         }
-        fetch(`http://127.0.0.1:5000/api/search?q=${encodeURIComponent(query)}`)
-          .then(res => {
-            if (!res.ok) {
-              return res.json().then(errData => {
-                throw new Error(errData.message || "Search error");
-              });
-            }
-            return res.json();
-          })
-          .then(data => {
-            // Expected: data is an array of movie objects matching the search query.
-            setMovies(data);
-          })
-          .catch(err => {
-            console.error("Error searching movies:", err);
-            // Optionally, clear movies on error.
-            setMovies([]);
-          });
-      };
 
-      return (
-        <div className="container">
-          <h1>Welcome to PopcornPicks</h1>
-          <p>Start choosing your favorite movies below!</p>
-          
-          {/* Search Bar */}
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button onClick={handleSearch}>Search</button>
-          
-          <h2>Movies</h2>
-          {movies.length > 0 ? (
-            movies.map(movie => (
-              <div className="movie" key={movie.id}>
-                <h3>{movie.title}</h3>
-                <p>{movie.description}</p>
-                <p>Rating: {movie.rating}</p>
-              </div>
-            ))
-          ) : (
-            <p>No movies found.</p>
-          )}
-        </div>
-      );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
