@@ -19,18 +19,25 @@
         function App() {
             const [searchQuery, setSearchQuery] = React.useState("");
             const [movies, setMovies] = React.useState([]);
+            const [error, setError] = React.useState(null);
             const [token, setToken] = React.useState(localStorage.getItem("token") || "");
             
-            React.useEffect(() => {
-                fetch("http://127.0.0.1:5000/api/movies")
+            const handleOmdbSearch = () => {
+                fetch(`http://127.0.0.1:5000/api/omdb_search?q=${searchQuery}`)
                     .then(res => res.json())
-                    .then(data => setMovies(data));
-            }, []);
-            
-            const handleSearch = () => {
-                fetch(`http://127.0.0.1:5000/api/search?q=${searchQuery}`)
-                    .then(res => res.json())
-                    .then(data => setMovies(data.message ? [] : data));
+                    .then(data => {
+                        if (data.message) {
+                            setError(data.message);
+                            setMovies([]);
+                        } else {
+                            setMovies(data);
+                            setError(null);
+                        }
+                    })
+                    .catch(err => {
+                        setError("Failed to fetch data");
+                        setMovies([]);
+                    });
             };
             
             const handleRegister = () => {
@@ -60,13 +67,9 @@
                 });
             };
             
-            const addFavorite = (movie) => {
-                if (!token) return alert("Please log in first");
-                fetch("http://127.0.0.1:5000/api/favorites", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ movie_id: movie.id, movie_title: movie.title })
-                }).then(res => res.json()).then(data => alert(data.message));
+            const handleLogout = () => {
+                localStorage.removeItem("token");
+                setToken("");
             };
             
             return (
@@ -74,14 +77,16 @@
                     <h1>PopcornPicks</h1>
                     <p>Discover movies and TV shows</p>
                     <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    <button onClick={handleSearch}>Search</button>
+                    <button onClick={handleOmdbSearch}>Search via OMDb</button>
                     <button onClick={handleRegister}>Register</button>
                     <button onClick={handleLogin}>{token ? "Logged In" : "Log In"}</button>
+                    {token && <button onClick={handleLogout}>Sign Out</button>}
+                    {error && <p style={{ color: 'red' }}>{error}</p>}
                     <ul>
                         {movies.length > 0 ? movies.map(m => (
-                            <li key={m.id}>
-                                <b>{m.title}</b> - Rating: {m.rating}
-                                <button onClick={() => addFavorite(m)}>Add to Favorites</button>
+                            <li key={m.imdbID}>
+                                <b>{m.Title}</b> - Year: {m.Year}
+                                <br /><img src={m.Poster} alt={m.Title} width="100" />
                             </li>
                         )) : <p>No results found.</p>}
                     </ul>

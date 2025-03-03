@@ -1,17 +1,21 @@
 from flask import Flask, request, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-import jwt, datetime
+import jwt, datetime, requests
 from functools import wraps
-from flask_cors import CORS  # <-- Add this import
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Change this in production!
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///popcornpicks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# OMDb API Key
+OMDB_API_KEY = "3c0768a3"
+OMDB_URL = "http://www.omdbapi.com/"
+
 # Initialize CORS for all routes
-CORS(app)  # <-- Enable CORS
+CORS(app)
 
 db = SQLAlchemy(app)
 
@@ -53,38 +57,23 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# User Registration
-@app.route('/register', methods=['POST'])
-def register():
-    data = request.get_json()
-    if not data or not data.get("email") or not data.get("password"):
-        return jsonify({"message": "Email and password required"}), 400
-
-    if User.query.filter_by(email=data["email"]).first():
-        return jsonify({"message": "User already exists"}), 400
-
-    try:
-        new_user = User(
-            email=data["email"],
-            password_hash=generate_password_hash(data["password"])
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        print(f"✅ User {data['email']} registered successfully")
-        return jsonify({"message": "User registered successfully"}), 201
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error registering user: {e}")
-        return jsonify({"message": "Database error"}), 500
-
-# User Login
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    user = User.query.filter_by(email=data["email"]).first()
-    if not user or not check_password_hash(user.password_hash, data["password"]):
-        return jsonify({"message": "Invalid credentials"}), 401
-    return jsonify({"token": create_token(user.id)}), 200
+# OMDb Search Endpoint
+@app.route('/api/omdb_search', methods=['GET'])
+def omdb_search():
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify({"message": "No query provided"}), 400
+    
+    response = requests.get(OMDB_URL, params={
+        "apikey": OMDB_API_KEY,
+        "s": query  # Searches for movies containing the query
+    })
+    
+    data = response.json()
+    if "Search" in data:
+        return jsonify(data["Search"]), 200
+    else:
+        return jsonify({"message": "No results found"}), 404
 
 # Get Trending Movies
 @app.route('/api/movies', methods=['GET'])
@@ -103,25 +92,6 @@ def search_movies():
     query = request.args.get('q', '').lower()
     results = [m for m in movies if query in m["title"].lower()]
     return jsonify(results if results else {"message": "No Results Found"}), (200 if results else 404)
-
-# Manage Favorite Movies
-@app.route('/api/favorites', methods=['GET'])
-@token_required
-def get_favorites():
-    user = g.current_user
-    favorites_list = [{"movie_id": f.movie_id, "movie_title": f.movie_title} for f in Favorite.query.filter_by(user_id=user.id).all()]
-    return jsonify(favorites_list), 200
-
-@app.route('/api/favorites', methods=['POST'])
-@token_required
-def add_favorite():
-    data = request.get_json()
-    user = g.current_user
-    if Favorite.query.filter_by(user_id=user.id, movie_id=data["movie_id"]).first():
-        return jsonify({"message": "Movie already in favorites"}), 400
-    db.session.add(Favorite(movie_id=data["movie_id"], movie_title=data["movie_title"], user_id=user.id))
-    db.session.commit()
-    return jsonify({"message": "Movie added to favorites"}), 201
 
 if __name__ == '__main__':
     with app.app_context():
