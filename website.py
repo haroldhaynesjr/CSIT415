@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-import jwt, datetime, requests
+import jwt, datetime, requests, os
 from functools import wraps
 from flask_cors import CORS
 
@@ -57,6 +57,29 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def fetch_omdb_data(title):
+    """Fetch movie details from the OMDb API by title."""
+    api_key = os.getenv('OMDB_API_KEY')
+    if not api_key:
+        print("OMDB_API_KEY is not set in the environment.")
+        return None
+    url = f"http://www.omdbapi.com/?apikey={api_key}&t={title}"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("Response") == "True":
+                return data
+            else:
+                print(f"OMDb API error: {data.get('Error')}")
+        else:
+            print(f"Error fetching OMDb data: {response.status_code}")
+    except Exception as e:
+        print(f"Exception during OMDb API call: {e}")
+    return None
+
+
+
 # OMDb Search Endpoint
 @app.route('/api/omdb_search', methods=['GET'])
 def omdb_search():
@@ -82,16 +105,50 @@ def get_movies():
 
 # Get Movie Details
 @app.route('/api/movies/<int:movie_id>', methods=['GET'])
+@app.route('/api/movies/<int:movie_id>', methods=['GET'])
 def get_movie_details(movie_id):
     movie = next((m for m in movies if m["id"] == movie_id), None)
-    return jsonify(movie if movie else {"message": "Movie not found"}), (200 if movie else 404)
+    if movie:
+        omdb_data = fetch_omdb_data(movie["title"])
+        if omdb_data:
+            movie.update({
+                "poster": omdb_data.get("Poster", ""),
+                "plot": omdb_data.get("Plot", ""),
+                "year": omdb_data.get("Year", ""),
+                "genre": omdb_data.get("Genre", "")
+            })
+        return jsonify(movie), 200
+    return jsonify({"message": "Movie not found"}), 404
+
 
 # Search for Movies
 @app.route('/api/search', methods=['GET'])
 def search_movies():
     query = request.args.get('q', '').lower()
-    results = [m for m in movies if query in m["title"].lower()]
-    return jsonify(results if results else {"message": "No Results Found"}), (200 if results else 404)
+    if not query:
+        return jsonify({"message": "No query provided"}), 400
+
+    # Filter your dummy movie data based on the search query
+    basic_results = [m for m in movies if query in m["title"].lower()]
+    detailed_results = []
+
+    for movie in basic_results:
+        # Fetch additional details from OMDb using the movie title
+        omdb_data = fetch_omdb_data(movie["title"])
+        if omdb_data:
+            movie.update({
+                "poster": omdb_data.get("Poster", ""),
+                "plot": omdb_data.get("Plot", ""),
+                "year": omdb_data.get("Year", ""),
+                "genre": omdb_data.get("Genre", "")
+            })
+        detailed_results.append(movie)
+
+    if detailed_results:
+        return jsonify(detailed_results), 200
+    else:
+        return jsonify({"message": "No Results Found"}), 404
+
 
 if __name__ == '__main__':
     with app.app_context():
