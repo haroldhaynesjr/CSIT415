@@ -10,7 +10,7 @@ app.config['SECRET_KEY'] = 'your_secret_key_here'  # Change this in production!
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///popcornpicks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# OMDb API Key
+# OMDb API Key and URL
 OMDB_API_KEY = "3c0768a3"
 OMDB_URL = "http://www.omdbapi.com/"
 
@@ -52,18 +52,14 @@ def token_required(f):
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             g.current_user = User.query.get(data['user_id'])
-        except:
+        except Exception as e:
             return jsonify({"message": "Token is invalid or expired!"}), 401
         return f(*args, **kwargs)
     return decorated
 
 def fetch_omdb_data(title):
     """Fetch movie details from the OMDb API by title."""
-    api_key = os.getenv('OMDB_API_KEY')
-    if not api_key:
-        print("OMDB_API_KEY is not set in the environment.")
-        return None
-    url = f"http://www.omdbapi.com/?apikey={api_key}&t={title}"
+    url = f"{OMDB_URL}?apikey={OMDB_API_KEY}&t={title}"
     try:
         response = requests.get(url)
         if response.status_code == 200:
@@ -78,7 +74,33 @@ def fetch_omdb_data(title):
         print(f"Exception during OMDb API call: {e}")
     return None
 
+# User Registration Endpoint
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+    if not email or not password:
+        return jsonify({"message": "Email and password required"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"message": "Email already exists"}), 400
+    password_hash = generate_password_hash(password)
+    new_user = User(email=email, password_hash=password_hash)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"message": "User registered successfully"}), 201
 
+# User Login Endpoint
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+    user = User.query.filter_by(email=email).first()
+    if not user or not check_password_hash(user.password_hash, password):
+        return jsonify({"message": "Invalid credentials"}), 401
+    token = create_token(user.id)
+    return jsonify({"token": token}), 200
 
 # OMDb Search Endpoint
 @app.route('/api/omdb_search', methods=['GET'])
@@ -86,15 +108,47 @@ def omdb_search():
     query = request.args.get('q', '')
     if not query:
         return jsonify({"message": "No query provided"}), 400
-    
+
+    # First: fetch a list of search results
     response = requests.get(OMDB_URL, params={
         "apikey": OMDB_API_KEY,
-        "s": query  # Searches for movies containing the query
+        "s": query  # e.g. "The Matrix"
     })
-    
     data = response.json()
+
+    # If OMDb returned results under "Search"
     if "Search" in data:
-        return jsonify(data["Search"]), 200
+        results = []
+        for item in data["Search"]:
+            imdb_id = item.get("imdbID")
+            if not imdb_id:
+                continue
+
+            # Second: fetch full details for each imdbID
+            detail_res = requests.get(OMDB_URL, params={
+                "apikey": OMDB_API_KEY,
+                "i": imdb_id  # e.g. "tt0133093"
+            })
+            detail_data = detail_res.json()
+
+            # Only add items with a valid response
+            if detail_data.get("Response") == "True":
+                mapped_item = {
+                    "id": imdb_id,
+                    "title": detail_data.get("Title"),
+                    "year": detail_data.get("Year"),
+                    "poster": detail_data.get("Poster"),
+                    "rating": detail_data.get("imdbRating"),
+                    "genre": detail_data.get("Genre"),
+                    "plot": detail_data.get("Plot")
+                }
+                results.append(mapped_item)
+
+        if not results:
+            return jsonify({"message": "No detailed results found"}), 404
+
+        return jsonify(results), 200
+
     else:
         return jsonify({"message": "No results found"}), 404
 
@@ -103,8 +157,7 @@ def omdb_search():
 def get_movies():
     return jsonify(movies), 200
 
-# Get Movie Details
-@app.route('/api/movies/<int:movie_id>', methods=['GET'])
+# Get Movie Details (single route)
 @app.route('/api/movies/<int:movie_id>', methods=['GET'])
 def get_movie_details(movie_id):
     movie = next((m for m in movies if m["id"] == movie_id), None)
@@ -120,7 +173,6 @@ def get_movie_details(movie_id):
         return jsonify(movie), 200
     return jsonify({"message": "Movie not found"}), 404
 
-
 # Search for Movies
 @app.route('/api/search', methods=['GET'])
 def search_movies():
@@ -128,12 +180,11 @@ def search_movies():
     if not query:
         return jsonify({"message": "No query provided"}), 400
 
-    # Filter your dummy movie data based on the search query
+    # Filter the dummy movie data based on the search query
     basic_results = [m for m in movies if query in m["title"].lower()]
     detailed_results = []
 
     for movie in basic_results:
-        # Fetch additional details from OMDb using the movie title
         omdb_data = fetch_omdb_data(movie["title"])
         if omdb_data:
             movie.update({
@@ -149,6 +200,25 @@ def search_movies():
     else:
         return jsonify({"message": "No Results Found"}), 404
 
+# Add Favorite Movie Endpoint
+@app.route('/api/favorites', methods=['POST'])
+@token_required
+def add_favorite():
+    data = request.get_json()
+    movie_id = data.get("movie_id")
+    movie_title = data.get("movie_title")
+    if not movie_id or not movie_title:
+        return jsonify({"message": "Missing movie information"}), 400
+
+    # Check if the movie is already in favorites for this user
+    existing = Favorite.query.filter_by(user_id=g.current_user.id, movie_id=movie_id).first()
+    if existing:
+        return jsonify({"message": "Movie already in favorites"}), 400
+
+    favorite = Favorite(movie_id=movie_id, movie_title=movie_title, user_id=g.current_user.id)
+    db.session.add(favorite)
+    db.session.commit()
+    return jsonify({"message": "Movie added to favorites"}), 200
 
 if __name__ == '__main__':
     with app.app_context():
