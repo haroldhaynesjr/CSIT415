@@ -220,6 +220,63 @@ def add_favorite():
     db.session.commit()
     return jsonify({"message": "Movie added to favorites"}), 200
 
+# personalized recommendations endpoint (basic placeholder, will be refined)
+@app.route('/api/recommendations', methods=['GET'])
+@token_required
+def get_recommendations():
+    # retrieve user's favorite movies from the database
+    favorites = g.current_user.favorites
+    if not favorites:
+        return jsonify({
+            "message": "No favorites found; returning trending movies as a fallback.",
+            "recommendations": movies
+        }), 200
+
+    # create dictionary for genres in favorites
+    genre_freq = {}
+    for fav in favorites:
+        omdb_data = fetch_omdb_data(fav.movie_title)
+        if omdb_data and omdb_data.get("Genre"):
+            # MUST CHANGE THIS PART IF GENRE FORMATTING FAILS.
+            genres = [genre.strip() for genre in omdb_data.get("Genre").split(",")]
+            for genre in genres:
+                genre_freq[genre] = genre_freq.get(genre, 0) + 1
+
+    if not genre_freq:
+        return jsonify({
+            "message": "Could not retrieve genre data from favorites; returning trending movies.",
+            "recommendations": movies
+        }), 200
+
+    # Determine the most frequent genre from the favorites
+    most_freq_genre = max(genre_freq, key=genre_freq.get)
+
+    # Look through the trending movies and pick those that match the most frequent genre
+    recommendations = []
+    for movie in movies:
+        omdb_data = fetch_omdb_data(movie["title"])
+        if omdb_data and omdb_data.get("Genre"):
+            movie_genres = [g.strip() for g in omdb_data.get("Genre").split(",")]
+            if most_freq_genre in movie_genres:
+                movie.update({
+                    "poster": omdb_data.get("Poster", ""),
+                    "plot": omdb_data.get("Plot", ""),
+                    "year": omdb_data.get("Year", ""),
+                    "genre": omdb_data.get("Genre", "")
+                })
+                recommendations.append(movie)
+
+    if not recommendations:
+        return jsonify({
+            "message": "No matching recommendations found; returning trending movies.",
+            "recommendations": movies
+        }), 200
+
+    return jsonify({
+        "message": "Recommendations based on your favorites.",
+        "recommendations": recommendations
+    }), 200
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
