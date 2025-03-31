@@ -1,128 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PopcornPicks</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: auto; padding: 20px; }
-    input, button { margin-top: 10px; padding: 10px; font-size: 16px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PopcornPicks</title>
+    
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #1c1c1c, #333);
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            color: #ddd;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            box-shadow: 0px 4px 20px rgba(0, 255, 170, 0.2);
+            border: 1px solid rgba(0, 255, 170, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0px 0px 10px #0ff;
+        }
+        input {
+            width: 90%;
+            padding: 12px;
+            font-size: 16px;
+            border: none;
+            border-radius: 25px;
+            outline: none;
+            margin-top: 10px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            color: #0ff;
+            transition: 0.3s;
+            box-shadow: 0px 0px 10px rgba(0, 255, 170, 0.5);
+        }
+        input:focus {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            transform: scale(1.05);
+        }
+        .fancy-btn {
+            margin-top: 15px;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(90deg, #0ff, #00ffaa);
+            color: #000;
+            transition: 0.3s;
+            box-shadow: 0px 0px 10px #0ff;
+            animation: glow-pulse 1.5s infinite alternate;
+        }
+        .fancy-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 0px 20px #00ffaa;
+        }
+        @keyframes glow-pulse {
+            0% { box-shadow: 0px 0px 10px #0ff; }
+            100% { box-shadow: 0px 0px 20px #00ffaa; }
+        }
+        .movie-card {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            margin: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 170, 0.3);
+            box-shadow: 0px 0px 10px rgba(0, 255, 170, 0.5);
+            transition: transform 0.3s;
+        }
+        .movie-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0px 0px 20px rgba(0, 255, 170, 0.8);
+        }
+    </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    function App() {
-      const [searchQuery, setSearchQuery] = React.useState("");
-      const [movies, setMovies] = React.useState([]);
-      const [error, setError] = React.useState(null);
-      const [token, setToken] = React.useState(localStorage.getItem("token") || "");
+    <div id="root"></div>
 
-      const handleOmdbSearch = () => {
-        fetch(`http://127.0.0.1:5000/api/omdb_search?q=${searchQuery}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.message) {
-              setError(data.message);
-              setMovies([]);
-            } else {
-              setMovies(data);
-              setError(null);
-            }
-          })
-          .catch(err => {
-            setError("Failed to fetch data");
-            setMovies([]);
-          });
-      };
+    <script type="text/babel">
+        function App() {
+            const [searchQuery, setSearchQuery] = React.useState("");
+            const [movies, setMovies] = React.useState([]);
+            const [error, setError] = React.useState(null);
+            const [token, setToken] = React.useState(localStorage.getItem("token") || "");
+            const [user, setUser] = React.useState(null);
 
-      const handleRegister = () => {
-        const email = prompt("Enter email:");
-        const password = prompt("Enter password:");
-        fetch("http://127.0.0.1:5000/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        })
-          .then(res => res.json())
-          .then(data => alert(data.message));
-      };
+            const handleRegister = () => {
+                const email = prompt("Enter email:");
+                const password = prompt("Enter password:");
+                fetch("http://127.0.0.1:5000/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                })
+                    .then(res => res.json())
+                    .then(data => alert(data.message));
+            };
 
-      const handleLogin = () => {
-        const email = prompt("Enter email:");
-        const password = prompt("Enter password:");
-        fetch("http://127.0.0.1:5000/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password })
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (data.token) {
-              localStorage.setItem("token", data.token);
-              setToken(data.token);
-            } else {
-              alert("Login failed");
-            }
-          });
-      };
+            const handleLogin = () => {
+                const email = prompt("Enter email:");
+                const password = prompt("Enter password:");
+                fetch("http://127.0.0.1:5000/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.token) {
+                            localStorage.setItem("token", data.token);
+                            setToken(data.token);
+                            fetchUserProfile(data.token);
+                        } else {
+                            alert("Login failed");
+                        }
+                    });
+            };
 
-      const handleLogout = () => {
-        localStorage.removeItem("token");
-        setToken("");
-      };
+            const handleLogout = () => {
+                localStorage.removeItem("token");
+                setToken("");
+                setUser(null);
+            };
 
-      const addFavorite = (movie) => {
-        if (!token) {
-          alert("You need to be logged in to add favorites.");
-          return;
+            const fetchUserProfile = (token) => {
+                fetch("http://127.0.0.1:5000/profile", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+                    .then(res => res.json())
+                    .then(data => setUser(data.user))
+                    .catch(() => alert("Failed to load profile"));
+            };
+
+            const handleOmdbSearch = () => {
+                fetch(`http://127.0.0.1:5000/api/omdb_search?q=${searchQuery}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.message) {
+                            setError(data.message);
+                            setMovies([]);
+                        } else {
+                            setMovies(data);
+                            setError(null);
+                        }
+                    })
+                    .catch(err => {
+                        setError("Failed to fetch data");
+                        setMovies([]);
+                    });
+            };
+
+            return (
+                <div className="container">
+                    <h1>PopcornPicks</h1>
+                    {token ? (
+                        <div>
+                            <h2>Welcome, {user ? user.email : "Loading profile..."}</h2>
+                            <button className="fancy-btn" onClick={handleLogout}>Sign Out</button>
+                        </div>
+                    ) : (
+                        <div>
+                            <button className="fancy-btn" onClick={handleLogin}>Log In</button>
+                            <button className="fancy-btn" onClick={handleRegister}>Register</button>
+                        </div>
+                    )}
+
+                    <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <button className="fancy-btn" onClick={handleOmdbSearch}>Search via OMDb</button>
+
+                    {error && <p style={{ color: 'red' }}>{error}</p>}
+                    <ul>
+                        {movies.map(m => (
+                            <li key={m.id} className="movie-card">
+                                <h3>{m.title} {m.year ? `(${m.year})` : ""}</h3>
+                                {m.poster && m.poster !== "N/A" && (
+                                    <img src={m.poster} alt={`${m.title} Poster`} style={{ width: '150px' }} />
+                                )}
+                                <p><strong>Rating:</strong> {m.rating}</p>
+                                {m.genre && <p><strong>Genre:</strong> {m.genre}</p>}
+                                {m.plot && m.plot !== "N/A" && <p><strong>Plot:</strong> {m.plot}</p>}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            );
         }
-        fetch("http://127.0.0.1:5000/api/favorites", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json", 
-            "Authorization": `Bearer ${token}` 
-          },
-          body: JSON.stringify({ movie_id: movie.id, movie_title: movie.title })
-        })
-          .then(res => res.json())
-          .then(data => alert(data.message))
-          .catch(err => alert("Error adding favorite"));
-      };
- 
-      return (
-        <div className="container">
-          <h1>PopcornPicks</h1>
-          <p>Discover movies and TV shows</p>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-          <button onClick={handleOmdbSearch}>Search via OMDb</button>
-          <button onClick={handleRegister}>Register</button>
-          <button onClick={handleLogin}>{token ? "Logged In" : "Log In"}</button>
-          {token && <button onClick={handleLogout}>Sign Out</button>}
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          <ul>
-            {movies.length > 0 ? movies.map(m => (
-              <li key={m.id} style={{ marginBottom: '20px' }}>
-                <h3>{m.title} {m.year ? `(${m.year})` : ""}</h3>
-                {m.poster && m.poster !== "N/A" && (
-                  <img src={m.poster} alt={`${m.title} Poster`} style={{ width: '150px' }} />
-                )}
-                <p><strong>Rating:</strong> {m.rating}</p>
-                {m.genre && <p><strong>Genre:</strong> {m.genre}</p>}
-                {m.plot && m.plot !== "N/A" && <p><strong>Plot:</strong> {m.plot}</p>}
-                <button onClick={() => addFavorite(m)}>Add to Favorites</button>
-              </li>
-            )) : <p>No results found.</p>}
-          </ul>
-        </div>
-      );
-    }
-    
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
 </body>
 </html>
