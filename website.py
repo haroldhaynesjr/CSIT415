@@ -218,7 +218,27 @@ def add_favorite():
     favorite = Favorite(movie_id=movie_id, movie_title=movie_title, user_id=g.current_user.id)
     db.session.add(favorite)
     db.session.commit()
-    return jsonify({"message": "Movie added to favorites"}), 200
+    return jsonify({"message": "Movie added to favorites"}), 
+
+# Get Favorite Movies for the current user
+@app.route('/api/favorites', methods=['GET'])
+@token_required
+def get_favorites():
+    favorites = g.current_user.favorites
+    favorite_movies = []
+    for fav in favorites:
+        omdb_data = fetch_omdb_data(fav.movie_title)
+        movie = {
+            "movie_id": fav.movie_id,
+            "movie_title": fav.movie_title,
+            "poster": omdb_data.get("Poster") if omdb_data else "",
+            "plot": omdb_data.get("Plot") if omdb_data else "",
+            "year": omdb_data.get("Year") if omdb_data else "",
+            "genre": omdb_data.get("Genre") if omdb_data else ""
+        }
+        favorite_movies.append(movie)
+    return jsonify(favorite_movies), 200
+
 
 # personalized recommendations endpoint (basic placeholder, will be refined)
 @app.route('/api/recommendations', methods=['GET'])

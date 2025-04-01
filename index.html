@@ -102,7 +102,11 @@
             const [error, setError] = React.useState(null);
             const [token, setToken] = React.useState(localStorage.getItem("token") || "");
             const [user, setUser] = React.useState(null);
-
+            const [favorites, setFavorites] = React.useState([]);
+            const [viewFavorites, setViewFavorites] = React.useState(false);
+            const [recommendations, setRecommendations] = React.useState([]);
+            const [viewRecommendations, setViewRecommendations] = React.useState(false);
+    
             const handleRegister = () => {
                 const email = prompt("Enter email:");
                 const password = prompt("Enter password:");
@@ -114,7 +118,7 @@
                     .then(res => res.json())
                     .then(data => alert(data.message));
             };
-
+    
             const handleLogin = () => {
                 const email = prompt("Enter email:");
                 const password = prompt("Enter password:");
@@ -134,13 +138,13 @@
                         }
                     });
             };
-
+    
             const handleLogout = () => {
                 localStorage.removeItem("token");
                 setToken("");
                 setUser(null);
             };
-
+    
             const fetchUserProfile = (token) => {
                 fetch("http://127.0.0.1:5000/profile", {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -149,8 +153,11 @@
                     .then(data => setUser(data.user))
                     .catch(() => alert("Failed to load profile"));
             };
-
+    
             const handleOmdbSearch = () => {
+                // Reset view state so search results show
+                setViewFavorites(false);
+                setViewRecommendations(false);
                 fetch(`http://127.0.0.1:5000/api/omdb_search?q=${searchQuery}`)
                     .then(res => res.json())
                     .then(data => {
@@ -167,7 +174,77 @@
                         setMovies([]);
                     });
             };
-
+    
+            const handleAddFavorite = (movie) => {
+                if (!token) {
+                    alert("Please log in to add favorites.");
+                    return;
+                }
+                fetch("http://127.0.0.1:5000/api/favorites", {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ movie_id: movie.id, movie_title: movie.title })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    // Optionally refresh favorites if already in favorites view
+                    if (viewFavorites) {
+                        handleFetchFavorites();
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Failed to add favorite.");
+                });
+            };
+    
+            const handleFetchFavorites = () => {
+                if (!token) {
+                    alert("Please log in to view favorites.");
+                    return;
+                }
+                // Reset other views
+                setViewRecommendations(false);
+                fetch("http://127.0.0.1:5000/api/favorites", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+                    .then(res => res.json())
+                    .then(data => setFavorites(data))
+                    .catch(err => {
+                        console.error(err);
+                        alert("Failed to fetch favorites.");
+                    });
+            };
+    
+            const handleGetRecommendations = () => {
+                if (!token) {
+                    alert("Please log in to get recommendations.");
+                    return;
+                }
+                // Reset other views
+                setViewFavorites(false);
+                fetch("http://127.0.0.1:5000/api/recommendations", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.recommendations) {
+                            setRecommendations(data.recommendations);
+                        } else {
+                            setRecommendations([]);
+                        }
+                        alert(data.message);
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("Failed to fetch recommendations.");
+                    });
+            };
+    
             return (
                 <div className="container">
                     <h1>PopcornPicks</h1>
@@ -175,6 +252,12 @@
                         <div>
                             <h2>Welcome, {user ? user.email : "Loading profile..."}</h2>
                             <button className="fancy-btn" onClick={handleLogout}>Sign Out</button>
+                            <button className="fancy-btn" onClick={() => { setViewFavorites(true); handleFetchFavorites(); }}>
+                                My Favorites
+                            </button>
+                            <button className="fancy-btn" onClick={() => { setViewRecommendations(true); handleGetRecommendations(); }}>
+                                Get Recommendation
+                            </button>
                         </div>
                     ) : (
                         <div>
@@ -182,29 +265,83 @@
                             <button className="fancy-btn" onClick={handleRegister}>Register</button>
                         </div>
                     )}
-
-                    <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    <button className="fancy-btn" onClick={handleOmdbSearch}>Search via OMDb</button>
-
+    
+                    {(!viewFavorites && !viewRecommendations) && (
+                        <div>
+                            <input type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            <button className="fancy-btn" onClick={handleOmdbSearch}>Search via OMDb</button>
+                        </div>
+                    )}
+    
                     {error && <p style={{ color: 'red' }}>{error}</p>}
-                    <ul>
-                        {movies.map(m => (
-                            <li key={m.id} className="movie-card">
-                                <h3>{m.title} {m.year ? `(${m.year})` : ""}</h3>
-                                {m.poster && m.poster !== "N/A" && (
-                                    <img src={m.poster} alt={`${m.title} Poster`} style={{ width: '150px' }} />
-                                )}
-                                <p><strong>Rating:</strong> {m.rating}</p>
-                                {m.genre && <p><strong>Genre:</strong> {m.genre}</p>}
-                                {m.plot && m.plot !== "N/A" && <p><strong>Plot:</strong> {m.plot}</p>}
-                            </li>
-                        ))}
-                    </ul>
+    
+                    {viewFavorites && (
+                        <div>
+                            <h2>Your Favorites</h2>
+                            <button className="fancy-btn" onClick={() => setViewFavorites(false)}>Back to Search</button>
+                            <ul>
+                                {favorites.map(fav => (
+                                    <li key={fav.movie_id} className="movie-card">
+                                        <h3>{fav.movie_title}</h3>
+                                        {fav.poster && fav.poster !== "N/A" && (
+                                            <img src={fav.poster} alt={`${fav.movie_title} Poster`} style={{ width: '150px' }} />
+                                        )}
+                                        <p><strong>Year:</strong> {fav.year}</p>
+                                        <p><strong>Genre:</strong> {fav.genre}</p>
+                                        <p><strong>Plot:</strong> {fav.plot}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+    
+                    {viewRecommendations && (
+                        <div>
+                            <h2>Your Personalized Recommendations</h2>
+                            <button className="fancy-btn" onClick={() => setViewRecommendations(false)}>Back to Search</button>
+                            <ul>
+                                {recommendations.map(rec => (
+                                    <li key={rec.id || rec.movie_id} className="movie-card">
+                                        <h3>{rec.title || rec.movie_title}</h3>
+                                        {rec.poster && rec.poster !== "N/A" && (
+                                            <img src={rec.poster} alt={`${rec.title || rec.movie_title} Poster`} style={{ width: '150px' }} />
+                                        )}
+                                        {rec.year && <p><strong>Year:</strong> {rec.year}</p>}
+                                        {rec.genre && <p><strong>Genre:</strong> {rec.genre}</p>}
+                                        {rec.plot && <p><strong>Plot:</strong> {rec.plot}</p>}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+    
+                    {(!viewFavorites && !viewRecommendations) && (
+                        <ul>
+                            {movies.map(m => (
+                                <li key={m.id} className="movie-card">
+                                    <h3>{m.title} {m.year ? `(${m.year})` : ""}</h3>
+                                    {m.poster && m.poster !== "N/A" && (
+                                        <img src={m.poster} alt={`${m.title} Poster`} style={{ width: '150px' }} />
+                                    )}
+                                    <p><strong>Rating:</strong> {m.rating}</p>
+                                    {m.genre && <p><strong>Genre:</strong> {m.genre}</p>}
+                                    {m.plot && m.plot !== "N/A" && <p><strong>Plot:</strong> {m.plot}</p>}
+                                    {token && (
+                                        <button className="fancy-btn" onClick={() => handleAddFavorite(m)}>
+                                            Add to Favorites
+                                        </button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
             );
         }
-
+    
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
+    
+    
 </body>
 </html>
