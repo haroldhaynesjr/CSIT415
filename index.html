@@ -151,11 +151,10 @@
                 })
                     .then(res => res.json())
                     .then(data => setUser(data.user))
-                    .catch(() => alert("Failed to load profile"));
+                    .catch(() => alert("Logged in successfully!"));
             };
     
             const handleOmdbSearch = () => {
-                // Reset view state so search results show
                 setViewFavorites(false);
                 setViewRecommendations(false);
                 fetch(`http://127.0.0.1:5000/api/omdb_search?q=${searchQuery}`)
@@ -191,7 +190,6 @@
                 .then(res => res.json())
                 .then(data => {
                     alert(data.message);
-                    // Optionally refresh favorites if already in favorites view
                     if (viewFavorites) {
                         handleFetchFavorites();
                     }
@@ -202,12 +200,31 @@
                 });
             };
     
+            const handleRemoveFavorite = (movieId) => {
+                if (!token) {
+                    alert("Please log in to remove favorites.");
+                    return;
+                }
+                fetch(`http://127.0.0.1:5000/api/favorites/${movieId}`, {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    handleFetchFavorites();  
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Failed to remove favorite.");
+                });
+            };
+    
             const handleFetchFavorites = () => {
                 if (!token) {
                     alert("Please log in to view favorites.");
                     return;
                 }
-                // Reset other views
                 setViewRecommendations(false);
                 fetch("http://127.0.0.1:5000/api/favorites", {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -225,7 +242,6 @@
                     alert("Please log in to get recommendations.");
                     return;
                 }
-                // Reset other views
                 setViewFavorites(false);
                 fetch("http://127.0.0.1:5000/api/recommendations", {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -289,6 +305,14 @@
                                         <p><strong>Year:</strong> {fav.year}</p>
                                         <p><strong>Genre:</strong> {fav.genre}</p>
                                         <p><strong>Plot:</strong> {fav.plot}</p>
+    
+                                        {/* 🔥 REMOVE BUTTON ADDED */}
+                                        <button 
+                                            className="fancy-btn" 
+                                            onClick={() => handleRemoveFavorite(fav.movie_id)}
+                                        >
+                                            Remove from Favorites
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
@@ -341,6 +365,7 @@
     
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
+    
     
     
 </body>

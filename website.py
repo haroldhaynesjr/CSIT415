@@ -46,13 +46,17 @@ def create_token(user_id):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization', '').split(" ")[-1]
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"message": "Authorization header is missing or malformed"}), 401
+        token = auth_header.split(" ")[1]
         if not token:
             return jsonify({"message": "Token is missing!"}), 401
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
             g.current_user = User.query.get(data['user_id'])
         except Exception as e:
+            print(f"Token decoding error: {e}")
             return jsonify({"message": "Token is invalid or expired!"}), 401
         return f(*args, **kwargs)
     return decorated
@@ -218,7 +222,7 @@ def add_favorite():
     favorite = Favorite(movie_id=movie_id, movie_title=movie_title, user_id=g.current_user.id)
     db.session.add(favorite)
     db.session.commit()
-    return jsonify({"message": "Movie added to favorites"}), 
+    return jsonify({"message": "Movie added to favorites"}), 201
 
 # Get Favorite Movies for the current user
 @app.route('/api/favorites', methods=['GET'])
@@ -239,6 +243,18 @@ def get_favorites():
         favorite_movies.append(movie)
     return jsonify(favorite_movies), 200
 
+#Remove favorites
+@app.route('/api/favorites/<string:movie_id>', methods=['DELETE'])
+@token_required
+def remove_favorite(movie_id):
+    favorite = Favorite.query.filter_by(user_id=g.current_user.id, movie_id=movie_id).first()
+    if not favorite:
+        return jsonify({"message": "Favorite not found"}), 404
+
+    db.session.delete(favorite)
+    db.session.commit()
+    return jsonify({"message": "Favorite removed successfully"}), 200
+
 
 # personalized recommendations endpoint (basic placeholder, will be refined)
 @app.route('/api/recommendations', methods=['GET'])
@@ -251,6 +267,8 @@ def get_recommendations():
             "message": "No favorites found; returning trending movies as a fallback.",
             "recommendations": movies
         }), 200
+    
+
 
     # create dictionary for genres in favorites
     genre_freq = {}
@@ -296,6 +314,7 @@ def get_recommendations():
         "message": "Recommendations based on your favorites.",
         "recommendations": recommendations
     }), 200
+
 
 if __name__ == '__main__':
     with app.app_context():
